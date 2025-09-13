@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Party Page</title>
+  <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      font-family:'Poppins',sans-serif;
+      background: url('HABEDE.png') center/cover no-repeat fixed;
+      display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;
+      text-align:center;
+    }
+    .drawing{width:300px;height:300px;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.2);margin-bottom:20px;animation:float 3s ease-in-out infinite;}
+    .drawing img{width:100%;height:100%;object-fit:cover;object-position:center top}
+    h1{font-family:'Pacifico',cursive;font-size:3rem;color:#ECD376;text-shadow:2px 2px 10px rgba(0,0,0,.2);margin-bottom:8px}
+    p{color:#A78243;margin-bottom:12px}
+    @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+    .button{padding:10px 20px;background:#ff3d7f;color:#fff;border-radius:30px;border:none;cursor:pointer;font-weight:700;box-shadow:0 5px 15px rgba(0,0,0,.2);transition:transform .15s}
+    .button:hover{transform:scale(1.05)}
+    /* confetti */
+    .confetti{position:fixed;top:-10px;opacity:.85;animation:fall linear infinite;z-index:0}
+    @keyframes fall{to{transform:translateY(110vh) rotate(360deg)}}
+    /* modal */
+    .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);align-items:center;justify-content:center;z-index:20}
+    .modal.active{display:flex}
+    .modal-content{position:relative;background:#fff;border-radius:14px;padding:8px;max-width:90%;max-height:100%;width:900px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+    .modal video{width:100%;height:auto;border-radius:8px;display:block}
+    .close-btn{position:absolute;top:-14px;right:-14px;background:#ff3d7f;color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:18px;cursor:pointer;z-index:30;display:flex;align-items:center;justify-content:center}
+    .close-btn:hover{background:#ff6099}
+    /* start overlay (shown only if autoplay blocked) */
+    #startOverlay{position:fixed;inset:0;background:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.45));display:none;align-items:center;justify-content:center;z-index:50;flex-direction:column;gap:12px}
+    #startOverlay button{font-size:20px;padding:14px 22px;border-radius:12px}
+    /* ensure close button is clickable above video */
+    .modal-content, .close-btn{pointer-events:auto}
+  </style>
+</head>
+<body>
+  <!-- page content -->
+  <audio id="bgMusic" src="birthday.mp3" loop></audio>
+
+  <div class="drawing"><img src="HABEDE.png" alt="drawing"></div>
+  <h1>Assalamualaikum</h1>
+  <p>Wi wok de tok not onli tok de tok 🫡🇮🇩</p>
+
+  <div style="display:flex;gap:12px;z-index:2">
+    <button class="button" id="openVideoBtn"> Klik inieh ad yg spesial mwah</button>
+    <button class="button" id="muteToggle">🔊 Mute</button>
+  </div>
+
+  <!-- modal -->
+  <div class="modal" id="videoModal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true">
+      <button class="close-btn" id="closeVideoBtn" aria-label="Close">✖</button>
+      <video id="specialVideo" controls preload="metadata">
+        <source src="yourvideo.mp4" type="video/mp4">
+        Your browser does not support HTML5 video.
+      </video>
+    </div>
+  </div>
+
+  <!-- overlay shown only if autoplay blocked -->
+  <div id="startOverlay">
+    <h2 style="color:white;font-family:Pacifico;font-size:36px">Tap to start The Bday Party miaw 😺 🎉</h2>
+    <button class="button" id="overlayBtn">Start Now</button>
+    <p style="color: #FFFFFF">MIAW miaw nyaw miaw miaw miaw im furry miaw 😺</p>
+  </div>
+
+  <script>
+    const bgMusic = document.getElementById('bgMusic');
+    const overlay = document.getElementById('startOverlay');
+    const overlayBtn = document.getElementById('overlayBtn');
+    const openVideoBtn = document.getElementById('openVideoBtn');
+    const modal = document.getElementById('videoModal');
+    const closeVideoBtn = document.getElementById('closeVideoBtn');
+    const specialVideo = document.getElementById('specialVideo');
+    const muteToggle = document.getElementById('muteToggle');
+
+    // confetti generator: start immediately (background)
+    function createConfetti(){
+      const el = document.createElement('div');
+      el.className = 'confetti';
+      const size = Math.random()*14 + 6; // 6-20px
+      el.style.width = size+'px';
+      el.style.height = (Math.random()>0.6?size+'px':(size*0.5)+'px');
+      el.style.left = (Math.random()*100)+'vw';
+      el.style.background = `hsl(${Math.random()*360},95%,65%)`;
+      el.style.borderRadius = Math.random()>0.5? '50%':'2px';
+      el.style.animationDuration = (Math.random()*2 + 3)+'s';
+      el.style.transform = `rotate(${Math.random()*360}deg)`;
+      el.style.zIndex = 0;
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),7000);
+    }
+    setInterval(()=>{ for(let i=0;i<3;i++) createConfetti(); }, 250); // lively but not insane
+
+    // Try autoplay strategy:
+    // 1) Start muted attempt (most browsers allow muted autoplay).
+    // 2) If play succeeds and browser allows unmuting, unmute.
+    // 3) If play() is rejected, show overlay for user to tap.
+    function tryAutoplay(){
+      bgMusic.muted = true;
+      const p = bgMusic.play();
+      if(p !== undefined){
+        p.then(()=> {
+          // muted playback started
+          // try to unmute after a short delay - may still be allowed
+          setTimeout(()=> {
+            // try to unmute; some browsers will still block this
+            try { bgMusic.muted = false; } catch(e){ }
+            // if still muted (browser blocked), show overlay
+            if(bgMusic.muted) {
+              showOverlay();
+            } else {
+              overlay.style.display = 'none';
+            }
+          }, 250); // small delay
+        }).catch(()=> {
+          // autoplay completely blocked: require user gesture
+          showOverlay();
+        });
+      } else {
+        // older browser fallback: show overlay
+        showOverlay();
+      }
+    }
+
+    function showOverlay(){
+      overlay.style.display = 'flex';
+    }
+
+    // overlay click: user gesture -> enable music & start celebration
+    overlayBtn.addEventListener('click', ()=> {
+      bgMusic.muted = false;
+      bgMusic.play().catch(()=>{ /*ignore*/ });
+      overlay.style.display = 'none';
+    });
+
+    // alternate: if user clicks anywhere, try to resume music (convenience)
+    document.addEventListener('click', function firstClickForMusic(){
+      if(bgMusic.paused || bgMusic.muted){
+        bgMusic.muted = false;
+        bgMusic.play().catch(()=>{ /*ignore*/ });
+      }
+      document.removeEventListener('click', firstClickForMusic);
+    });
+
+    // video modal open: pause bg music to avoid clash
+    openVideoBtn.addEventListener('click', ()=>{
+      // pause background music safely
+      try { bgMusic.pause(); } catch(e){}
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden','false');
+      specialVideo.currentTime = 0;
+      specialVideo.play().catch(()=>{/*video autoplay blocked on some mobiles, user can press play*/});
+    });
+
+    // close modal
+    closeVideoBtn.addEventListener('click', closeModal);
+    // click outside modal-content closes modal
+    modal.addEventListener('click', (ev) => {
+      if(ev.target === modal) closeModal();
+    });
+
+    function closeModal(){
+      specialVideo.pause();
+      specialVideo.currentTime = 0;
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden','true');
+      // resume bg music if it was playing before
+      bgMusic.play().catch(()=>{/*ignore*/});
+    }
+
+    // If the video itself is paused/ended, resume bg music
+    specialVideo.addEventListener('ended', ()=>{ bgMusic.play().catch(()=>{}); modal.classList.remove('active'); });
+    specialVideo.addEventListener('pause', ()=>{ /* don't auto-resume on user pausing, we resume only when modal closed */ });
+
+    // mute toggle for user control
+    muteToggle.addEventListener('click', ()=>{
+      bgMusic.muted = !bgMusic.muted;
+      muteToggle.textContent = bgMusic.muted ? '🔇 Muted' : '🔊 Unmuted';
+    });
+
+    // Initial attempt
+    tryAutoplay();
+  </script>
+</body>
+</html>
